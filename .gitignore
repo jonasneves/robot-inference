@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.venv/
+dist/
+*.egg-info/
+
+# uv
+.python-version
+
+# Policies — large binary files, store separately
+policies/*.onnx
+policies/*.pt
+policies/*.pth
+!policies/.gitkeep
+
+# Robot MJCF resources — download separately
+resources/
+
+# Config overrides
+config.mk
+
+# Local proxy (Node)
+node_modules/
+
+# Dashboard secrets
+dashboard/config.json
+
+# macOS
+.DS_Store

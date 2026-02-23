@@ -1,0 +1,5 @@
+# Copy this file to config.mk and fill in your values.
+# config.mk is gitignored — your credentials will not be committed.
+
+# Python binary to use (defaults to python3)
+# PYTHON = python3.12

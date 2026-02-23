@@ -1,0 +1,34 @@
+# Unitree Go2 — real robot config
+robot: unitree_go2
+network_interface: eth0          # Ethernet interface connected to robot
+
+policy: policies/go2_locomotion.onnx
+
+# Control loop
+control_dt: 0.02                 # 50 Hz
+max_steps:  0                    # 0 = run until Ctrl+C
+publish_every: 5                 # publish state to MQTT every N steps
+
+# Policy I/O
+obs_dim: 48
+action_dim: 12
+action_scale: 0.25
+
+# PD gains
+kp: 20.0
+kd:  0.5
+
+# Observation layout — index where vx/vy/vyaw velocity command lives
+vel_cmd_idx: 5                   # obs[5:8] = vx, vy, vyaw
+
+# Observation scaling (multiply raw values before feeding to policy)
+obs_scales:
+  lin_vel:  2.0
+  ang_vel:  0.25
+  dof_pos:  1.0
+  dof_vel:  0.05
+
+# MQTT bridge (leave mqtt_broker blank to disable)
+mqtt_broker: broker.hivemq.com
+mqtt_port:   1883
+robot_id:    go2_0

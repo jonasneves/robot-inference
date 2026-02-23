@@ -1,0 +1,29 @@
+# Unitree G1 humanoid — real robot config
+robot: unitree_g1
+msg_type: hg                     # hg for G1/H1_2, go for H1
+network_interface: eth0
+
+policy: policies/g1_locomotion.onnx
+
+control_dt: 0.02
+max_steps:  0
+publish_every: 5
+
+obs_dim: 55
+action_dim: 23
+action_scale: 0.25
+
+kp: 80.0
+kd:  2.0
+
+vel_cmd_idx: 6
+
+obs_scales:
+  lin_vel:  2.0
+  ang_vel:  0.25
+  dof_pos:  1.0
+  dof_vel:  0.05
+
+mqtt_broker: broker.hivemq.com
+mqtt_port:   1883
+robot_id:    g1_0

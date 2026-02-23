@@ -1,0 +1,42 @@
+[project]
+name = "robot-inference"
+version = "0.1.0"
+description = "Policy inference runtime for real robots and simulation"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.24",
+    "pyyaml>=6.0",
+    "paho-mqtt>=2.0",
+]
+
+[project.optional-dependencies]
+mujoco = [
+    "mujoco>=3.0",
+]
+onnx = [
+    "onnxruntime>=1.17",
+]
+torch = [
+    "torch>=2.0",
+]
+all = [
+    "mujoco>=3.0",
+    "onnxruntime>=1.17",
+    "torch>=2.0",
+]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.4",
+]
+
+# unitree_sdk2py is not on PyPI — install separately from:
+# https://github.com/unitreerobotics/unitree_sdk2_python
+
+[project.scripts]
+robot-run = "runner:main"
+
+[tool.ruff]
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,10 @@
+services:
+  mqtt:
+    image: eclipse-mosquitto:latest
+    container_name: mqtt
+    ports:
+      - "1883:1883"   # MQTT (for runner bridge)
+      - "9001:9001"   # WebSocket (for browser dashboard)
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    restart: unless-stopped

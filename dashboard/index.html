@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f0efeb">
+  <title>Robot Inference Dashboard</title>
+  <meta property="og:title" content="Robot Inference Dashboard">
+  <meta property="og:description" content="Control and monitor robot inference over MQTT">
+  <link rel="stylesheet" href="style.css">
+  <link rel="preload" href="https://cdn.jsdelivr.net/npm/mqtt@5/dist/mqtt.min.js" as="script">
+  <link rel="preload" href="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js" as="script">
+  <link rel="preload" href="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js" as="script">
+  <style>
+    /* ── Robot-specific additions ─────────────────────────── */
+
+    .robot-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 20px 24px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .panel-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .panel-section-head {
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel-section-title {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .panel-section-body {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* ── Robot ID selector ── */
+
+    .robot-id-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .robot-id-input {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 5px 8px;
+      height: 30px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+      color: var(--text);
+      width: 140px;
+    }
+
+    .robot-id-input:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .robot-id-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    /* ── Policy status badge ── */
+
+    .policy-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+
+    .policy-badge.running {
+      background: var(--accent-light);
+      border-color: var(--accent);
+      color: var(--accent-hover);
+    }
+
+    .policy-badge.stopped {
+      background: var(--surface-raised);
+    }
+
+    .policy-badge .policy-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      flex-shrink: 0;
+    }
+
+    .policy-badge.running .policy-dot {
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+
+    .policy-step {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+    }
+
+    /* ── Velocity sliders ── */
+
+    .vel-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+
+    .vel-item {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .vel-label-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+
+    .vel-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+
+    .vel-value {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text);
+      min-width: 40px;
+      text-align: right;
+    }
+
+    .vel-slider {
+      width: 100%;
+      accent-color: var(--accent);
+      cursor: pointer;
+      height: 4px;
+    }
+
+    .vel-range {
+      display: flex;
+      justify-content: space-between;
+      font-size: 9px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    /* ── Command buttons ── */
+
+    .cmd-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .cmd-btn {
+      height: 34px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .cmd-btn.danger {
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    .cmd-btn.danger:hover {
+      background: var(--danger-light);
+    }
+
+    /* ── Telemetry joint grid ── */
+
+    .joint-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+
+    .joint-cell {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 6px 8px;
+    }
+
+    .joint-name {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    .joint-val {
+      font-size: 12px;
+      font-family: var(--font-mono);
+      color: var(--text);
+    }
+
+    .imu-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .imu-cell {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 6px 8px;
+    }
+
+    .imu-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    .imu-val {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text);
+    }
+
+    .telemetry-ts {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      text-align: right;
+    }
+
+    .no-data {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-style: italic;
+      padding: 8px 0;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <span class="topbar-title">Robot Inference</span>
+    <div class="status-row">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="status-text">Disconnected</span>
+    </div>
+    <div class="topbar-spacer"></div>
+    <div class="url-wrap">
+      <input
+        class="url-input"
+        id="url-input"
+        type="text"
+        value="wss://broker.hivemq.com:8884/mqtt"
+        aria-label="MQTT broker WebSocket URL"
+        spellcheck="false"
+      >
+      <button class="url-presets-btn" id="url-presets-btn" aria-label="Broker presets" title="Broker presets">▾</button>
+      <div class="url-presets-popover" id="url-presets-popover" hidden role="listbox" aria-label="Broker presets">
+        <button class="url-preset-item" data-url="wss://broker.hivemq.com:8884/mqtt" role="option">
+          <span class="url-preset-label">HiveMQ</span>
+          <span class="url-preset-note">public cloud</span>
+        </button>
+        <button class="url-preset-item" data-url="wss://test.mosquitto.org:8081" role="option">
+          <span class="url-preset-label">test.mosquitto.org</span>
+          <span class="url-preset-note">public cloud</span>
+        </button>
+        <button class="url-preset-item" data-url="ws://localhost:9001" role="option">
+          <span class="url-preset-label">localhost:9001</span>
+          <span class="url-preset-note">local only · make mqtt</span>
+        </button>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-sm" id="connect-btn">Connect</button>
+    <button class="btn btn-sm" id="chat-panel-toggle" aria-expanded="false" aria-controls="chat-panel">AI Chat</button>
+  </header>
+
+  <div class="body">
+
+    <!-- Robot control + telemetry main area -->
+    <div class="main-col">
+      <div class="robot-panel">
+
+        <!-- Robot identity + policy status -->
+        <div class="panel-section">
+          <div class="panel-section-head">
+            <span class="panel-section-title">Robot</span>
+            <div id="policy-badge" class="policy-badge stopped">
+              <span class="policy-dot"></span>
+              <span id="policy-badge-label">Stopped</span>
+            </div>
+          </div>
+          <div class="panel-section-body">
+            <div class="robot-id-row">
+              <span class="robot-id-label">Robot ID</span>
+              <input class="robot-id-input" id="robot-id-input" type="text" value="go2_0" spellcheck="false">
+              <button class="btn btn-sm" id="robot-id-save">Apply</button>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <span class="policy-step" id="policy-step">Step —</span>
+              <span class="policy-step" id="policy-ts">Last message —</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Velocity command -->
+        <div class="panel-section">
+          <div class="panel-section-head">
+            <span class="panel-section-title">Velocity Command</span>
+            <button class="btn btn-sm" id="vel-send-btn" disabled>Send</button>
+          </div>
+          <div class="panel-section-body">
+            <div class="vel-grid">
+              <div class="vel-item">
+                <div class="vel-label-row">
+                  <span class="vel-label">vx</span>
+                  <span class="vel-value" id="vx-val">0.00</span>
+                </div>
+                <input type="range" class="vel-slider" id="vx-slider" min="-1.0" max="1.0" step="0.05" value="0">
+                <div class="vel-range"><span>-1.0</span><span>m/s</span><span>1.0</span></div>
+              </div>
+              <div class="vel-item">
+                <div class="vel-label-row">
+                  <span class="vel-label">vy</span>
+                  <span class="vel-value" id="vy-val">0.00</span>
+                </div>
+                <input type="range" class="vel-slider" id="vy-slider" min="-0.5" max="0.5" step="0.05" value="0">
+                <div class="vel-range"><span>-0.5</span><span>m/s</span><span>0.5</span></div>
+              </div>
+              <div class="vel-item">
+                <div class="vel-label-row">
+                  <span class="vel-label">vyaw</span>
+                  <span class="vel-value" id="vyaw-val">0.00</span>
+                </div>
+                <input type="range" class="vel-slider" id="vyaw-slider" min="-1.0" max="1.0" step="0.05" value="0">
+                <div class="vel-range"><span>-1.0</span><span>rad/s</span><span>1.0</span></div>
+              </div>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-sm" id="vel-zero-btn">Zero</button>
+              <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary); cursor:pointer; user-select:none;">
+                <input type="checkbox" id="vel-auto-send" style="accent-color:var(--accent); cursor:pointer;">
+                Auto-send on change
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- State commands -->
+        <div class="panel-section">
+          <div class="panel-section-head">
+            <span class="panel-section-title">Commands</span>
+          </div>
+          <div class="panel-section-body">
+            <div class="cmd-grid">
+              <button class="btn cmd-btn" id="cmd-stand-up"   disabled>Stand Up</button>
+              <button class="btn cmd-btn" id="cmd-stand-down" disabled>Stand Down</button>
+              <button class="btn cmd-btn" id="cmd-damping"    disabled>Damping</button>
+              <button class="btn cmd-btn btn-primary" id="cmd-policy-start" disabled>Start Policy</button>
+              <button class="btn cmd-btn" id="cmd-policy-stop" disabled>Stop Policy</button>
+              <button class="btn cmd-btn danger" id="cmd-estop" disabled>E-STOP</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Telemetry -->
+        <div class="panel-section">
+          <div class="panel-section-head">
+            <span class="panel-section-title">Telemetry</span>
+            <span class="telemetry-ts" id="telemetry-ts">—</span>
+          </div>
+          <div class="panel-section-body">
+            <div class="section-label">IMU</div>
+            <div class="imu-row" id="imu-row">
+              <div class="no-data">No data yet — connect and start runner to stream state.</div>
+            </div>
+            <div class="section-label">Joints</div>
+            <div class="joint-grid" id="joint-grid">
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- AI Chat panel (right side) -->
+    <div class="chat-panel" id="chat-panel" hidden>
+      <div class="chat-header">
+        <span class="chat-header-title">AI Chat</span>
+        <select class="chat-model-select" id="chat-model-select">
+          <optgroup label="Anthropic API">
+            <option value="anthropic:claude-sonnet-4-6">claude-sonnet-4-6</option>
+            <option value="anthropic:claude-haiku-4-5-20251001">claude-haiku-4-5</option>
+          </optgroup>
+          <optgroup label="GitHub Models">
+            <option value="github:claude-3-7-sonnet">GitHub · claude-3-7-sonnet</option>
+          </optgroup>
+          <optgroup label="Local">
+            <option value="local:claude">Local (claude cli)</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="settings-section" style="flex-shrink:0;">
+        <div class="settings-auth-row">
+          <input type="password" class="chat-auth-input" id="chat-api-key" placeholder="Anthropic API key (sk-ant-…)" autocomplete="off" spellcheck="false">
+          <button type="button" class="btn btn-sm" id="chat-key-save">Save</button>
+        </div>
+      </div>
+      <div class="chat-messages" id="chat-messages"></div>
+      <div class="chat-input-area">
+        <div class="chat-input-wrap">
+          <textarea
+            class="chat-input"
+            id="chat-input"
+            placeholder="Tell the robot what to do…"
+            rows="2"
+          ></textarea>
+          <button class="chat-send-btn" id="chat-send-btn" aria-label="Send" title="Send (Enter)">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M7 12V2M2 7l5-5 5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+        <div style="font-size:10px; color:var(--text-muted);">Enter to send · Shift+Enter for newline</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5/dist/mqtt.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+<script src="robot.js"></script>
+</body>
+</html>

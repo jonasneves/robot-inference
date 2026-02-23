@@ -1,0 +1,15 @@
+# Mock robot — no hardware, no sim required. Good for testing the pipeline.
+robot: mock
+policy: policies/mock.onnx       # replace with a real policy to test loading
+
+control_dt: 0.02
+max_steps:  200
+publish_every: 5
+
+obs_dim: 48
+action_dim: 12
+action_scale: 0.25
+vel_cmd_idx: 5
+
+# Leave mqtt_broker blank to skip bridge
+mqtt_broker:
